@@ -1,0 +1,15 @@
+---
+- name:  loads and apply kernel parameters 
+  hosts: "{{ host }}"
+  become: yes
+  become_method: sudo
+
+  tasks:
+
+    - name: Copy updated configuration file
+      copy:
+        content: "{{ lookup('file', '{{ src_path }}') }}"
+        dest: "{{ dest_path }}"
+
+    - name: Apply sysctl commnad 
+      command: sysctl -p

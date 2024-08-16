@@ -1,0 +1,35 @@
+---
+- name: Updating {{ service }} data and user permission
+  hosts: "{{ host }}"
+  become: yes
+  become_method: sudo
+
+  tasks:
+
+    - name: Check user present
+      include_role:
+        name: linux_user_present
+
+    - name: Check group present
+      include_role:
+        name: linux_group_present
+
+    - debug:
+        var: group_check
+
+    - debug:
+        var: user_check
+
+    - name: Copy updated configuration file
+      copy:
+        content: "{{ lookup('file', '{{ src_path }}') }}"
+        dest: "{{ dest_path }}"
+
+    - name: Ownership
+      include_role:
+        name: linux_ownership
+
+    - name: Restart Service
+      include_role:
+        name: linux_service_restart
+      when: restart_flag == "true"

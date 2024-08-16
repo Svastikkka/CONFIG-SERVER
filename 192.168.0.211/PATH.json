@@ -1,0 +1,18 @@
+{
+
+    "syslog.service": {
+        "path": "/etc/systemd/system/syslog.service",
+        "service": "syslog",
+        "enable": "false"
+    },
+    "telegraf.conf": {
+        "path": "/etc/telegraf/telegraf.conf",
+        "service": "telegraf",
+        "enable": "false"
+    },
+    "50-cloud-init.yaml": {
+        "path": "/etc/telegraf/telegraf.conf",
+        "service": "telegraf",
+        "enable": "false"
+    }
+}
