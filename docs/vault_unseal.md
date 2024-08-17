@@ -17,13 +17,13 @@ vault operator init
 Sample output
 
 ```bash
-Unseal Key 1: zznvQOa3abVga2k7IV09bmAhl7+XaN4qD1Cw/hqvYaRH
-Unseal Key 2: edarI2broGkVTvEPV+7cFY9c0tiGUQ8bU51HY8T6mc1T
-Unseal Key 3: elFQC/EAx5T48/yHYCW19kNBaU4j1rOCc1a4Aj3EFFql
-Unseal Key 4: yGEBUh2a/814kqlpznenREv9BM60BLJ9G7Twe2/Y7wyX
-Unseal Key 5: Ie3ar2KfsHN3DtUNvml/N6v9XMJwM6XimIALFZ4FWd2B
+Unseal Key 1: samplekey1
+Unseal Key 2: samplekey2
+Unseal Key 3: samplekey3
+Unseal Key 4: samplekey4
+Unseal Key 5: samplekey5
 
-Initial Root Token: hvs.2J6vwkzWHZ9ZmATOzmeWumiq
+Initial Root Token: hvs.samplekey
 
 Vault initialized with 5 key shares and a key threshold of 3. Please securely
 distribute the key shares printed above. When the Vault is re-sealed,
@@ -43,9 +43,9 @@ existing unseal keys shares. See "vault operator rekey" for more information.
 ```bash
 # Run below commands to unseal vault. 
 # Note: Replace sample keys with yours keys
-vault operator unseal zznvQOa3abVga2k7IV09bmAhl7+XaN4qD1Cw/hqvYaRH
-vault operator unseal edarI2broGkVTvEPV+7cFY9c0tiGUQ8bU51HY8T6mc1T
-vault operator unseal elFQC/EAx5T48/yHYCW19kNBaU4j1rOCc1a4Aj3EFFql
+vault operator unseal samplekey1
+vault operator unseal samplekey2
+vault operator unseal samplekey3
 ```
 
 5. Login to vault
