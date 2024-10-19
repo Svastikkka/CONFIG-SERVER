@@ -94,7 +94,6 @@ pipeline {
                         }
                     }
                     applyModifiedFiles(modifiedFiles)
-                    sh "exit 1"                
                 }
             }
         }
