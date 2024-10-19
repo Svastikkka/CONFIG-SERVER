@@ -1,11 +1,52 @@
 // @Library("shared-lib@master") _
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
-def modifiedFiles
+def modifiedFiles = []
+def outputFilePath = '/tmp/LastFailedModifiedFiles.txt'
+
+def applyModifiedFiles(modifiedFiles) {
+    // Print the list of modified files using a loop
+    for (int i = 0; i < modifiedFiles.size(); i++) {
+        echo "Complete PATH: ${modifiedFiles[i]}"
+        def parts = modifiedFiles[i].split('/')
+
+        def jsonFilePath = "${parts[0]}/PATH.json"
+        def keyToExtract = "${parts[2]}"
+        def jsonContent = new HashMap(readJSON(file: jsonFilePath))
+        if ("${parts[1]}" == "files") {
+            keyToExtract = "${parts[2]}"
+            fileInfo = new HashMap(jsonContent["files"][keyToExtract])
+        } else if ("${parts[1]}" == "docker-config") {
+            keyToExtract = "${parts[3]}"
+            fileInfo = new HashMap(jsonContent["docker-config"][keyToExtract])
+        } else if ("${parts[1]}" == "docker-compose") {
+            keyToExtract = "${parts[2]}"
+            fileInfo = new HashMap(jsonContent["docker-compose"][keyToExtract])
+        } else if ("${parts[1]}" == "schema-psql") {
+            keyToExtract = "${parts[2]}"
+            fileInfo = new HashMap(jsonContent["schema-psql"][keyToExtract])
+        } else if ("${parts[1]}" != "cron" && "${parts[1]}" != "docker-config" && "${parts[1]}" != "docker-compose")  {
+            keyToExtract = "${parts[2]}"
+            fileInfo = new HashMap(jsonContent[keyToExtract])
+        }
+
+        echo "Host: ${parts[0]}"
+        echo "Sub Folder: ${parts[1]}"
+        if ("${parts[1]}" != "cron" && "${parts[1]}" != "schema-psql"){
+            echo "Filename: ${parts[2]}"
+            echo "Service: ${fileInfo.service}"
+            echo "Path: ${fileInfo.path}"
+            echo "Enabled: ${fileInfo.enable}"
+            echo "Project: ${fileInfo.project}"
+        }
+    }
+}
+
 pipeline {
     agent any
     parameters {
-        booleanParam(name: 'Rebuild', defaultValue: false, description: 'It will reapply new changes in the previous change files ')
+        booleanParam(name: 'Rebuild', defaultValue: false, description: 'It will reapply new changes in the previous change files')
+        string(name: 'BuildBumber', defaultValue: "", description: 'It will reapply changes from particular build')
     }
     stages {
         stage('Print Modified Files') {
@@ -38,9 +79,7 @@ pipeline {
                         filePath.endsWith('dkms.yml') ||
                         filePath.endsWith('sysctl.yml')                        
                     }
- 
-                    modifiedFiles = []
- 
+  
                     currentBuild.changeSets.each { changeLogSet ->
                         changeLogSet.items.each { entry ->
                             echo "${entry.commitId} by ${entry.author} on ${new Date(entry.timestamp)}: ${entry.msg}"
@@ -54,43 +93,7 @@ pipeline {
                             }
                         }
                     }
-
-                    // Print the list of modified files using a loop
-                    for (int i = 0; i < modifiedFiles.size(); i++) {
-                        echo "Complete PATH: ${modifiedFiles[i]}"
-                        def parts = modifiedFiles[i].split('/')
- 
-                        def jsonFilePath = "${parts[0]}/PATH.json"
-                        def keyToExtract = "${parts[2]}"
-                        def jsonContent = new HashMap(readJSON(file: jsonFilePath))
-                        if ("${parts[1]}" == "files") {
-                            keyToExtract = "${parts[2]}"
-                            fileInfo = new HashMap(jsonContent["files"][keyToExtract])
-                        } else if ("${parts[1]}" == "docker-config") {
-                            keyToExtract = "${parts[3]}"
-                            fileInfo = new HashMap(jsonContent["docker-config"][keyToExtract])
-                        } else if ("${parts[1]}" == "docker-compose") {
-                            keyToExtract = "${parts[2]}"
-                            fileInfo = new HashMap(jsonContent["docker-compose"][keyToExtract])
-                        } else if ("${parts[1]}" == "schema-psql") {
-                            keyToExtract = "${parts[2]}"
-                            fileInfo = new HashMap(jsonContent["schema-psql"][keyToExtract])
-                        } else if ("${parts[1]}" != "cron" && "${parts[1]}" != "docker-config" && "${parts[1]}" != "docker-compose")  {
-                            keyToExtract = "${parts[2]}"
-                            fileInfo = new HashMap(jsonContent[keyToExtract])
-                        }
-
-                        echo "Host: ${parts[0]}"
-                        echo "Sub Folder: ${parts[1]}"
-                        if ("${parts[1]}" != "cron" && "${parts[1]}" != "schema-psql"){
-                            echo "Filename: ${parts[2]}"
-                            echo "Service: ${fileInfo.service}"
-                            echo "Path: ${fileInfo.path}"
-                            echo "Enabled: ${fileInfo.enable}"
-                            echo "Project: ${fileInfo.project}"
-                        }
-                        sh "exit 1"
-                    }
+                    applyModifiedFiles(modifiedFiles)                    
                 }
             }
         }
@@ -99,23 +102,25 @@ pipeline {
         success {
             script {
                 // notification("Pipeline job has successfully build")
-                // Create LastFailedModifiedFile.txt and write modified files if there are any
-                if (modifiedFiles.size() > 0) {
-                    def outputFilePath = '/tmp/LastFailedModifiedFile.txt'
-                    writeFile file: outputFilePath, text: modifiedFiles.join('\n')
-                    echo "Modified files written to ${outputFilePath}"
-                }
+                echo "Further checks"
             }
         }
         failure {
             script {
                 // notification("Pipeline job has failure build")
 
-                // Create LastFailedModifiedFile.txt and write modified files if there are any
+                // Create LastFailedModifiedFiles.txt and write modified files if there are any
                 if (modifiedFiles.size() > 0) {
-                    def outputFilePath = '/tmp/LastFailedModifiedFile.txt'
                     writeFile file: outputFilePath, text: modifiedFiles.join('\n')
                     echo "Modified files written to ${outputFilePath}"
+                }
+            }
+        }
+        always {
+            script {
+                if (params.Rebuild) {
+                    def modifiedFiles = readFile(outputFilePath).trim().split('\n').findAll { it.trim() != '' }
+                    echo "Modified Files:\n${fileContent}"
                 }
             }
         }
