@@ -1,11 +1,10 @@
-// @Library("shared-lib@master") _
+@Library("shared-lib@master") _
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
 
 pipeline {
-    agent any
-    parameters {
-        booleanParam(name: 'Rebuild', defaultValue: false, description: 'It will reapply new changes in the previous change files ')
+    agent {
+        label 'localhost'
     }
     stages {
         stage('Print Modified Files') {
@@ -40,15 +39,7 @@ pipeline {
                     }
  
                     def modifiedFiles = []
-                    // Ensure the existence of the modifiedFiles.txt file
-                    def modifiedFilesFile = new File("/tmp/modifiedFiles.txt")
-                    // Clear modifiedFiles.txt if Rebuild is unchecked
-                    if (!params.Rebuild) {
-                        if (modifiedFilesFile.exists()) {
-                            modifiedFilesFile.delete()
-                        }
-                        modifiedFilesFile.createNewFile()
-                    }
+ 
                     currentBuild.changeSets.each { changeLogSet ->
                         changeLogSet.items.each { entry ->
                             echo "${entry.commitId} by ${entry.author} on ${new Date(entry.timestamp)}: ${entry.msg}"
@@ -63,19 +54,6 @@ pipeline {
                         }
                     }
 
-
-                    // Append each modified file path to modifiedFiles.txt
-                    for (int i = 0; i < modifiedFiles.size(); i++) {
-                        modifiedFilesFile.append("${modifiedFiles[i]}\n")
-                    }
-
-                    // Read the content of modifiedFiles.txt
-                    def fileContent = readFile('/tmp/modifiedFiles.txt').trim().split('\n').findAll { it.trim() != '' }
-                    echo "Modified Files:\n${fileContent}"
-
-                    modifiedFiles.clear()
-                    modifiedFiles.addAll(fileContent)
- 
                     // Print the list of modified files using a loop
                     for (int i = 0; i < modifiedFiles.size(); i++) {
                         echo "Complete PATH: ${modifiedFiles[i]}"
@@ -96,9 +74,6 @@ pipeline {
                         } else if ("${parts[1]}" == "schema-psql") {
                             keyToExtract = "${parts[2]}"
                             fileInfo = new HashMap(jsonContent["schema-psql"][keyToExtract])
-                        } else if ("${parts[1]}" == "schema-mysql") {
-                            keyToExtract = "${parts[2]}"
-                            fileInfo = new HashMap(jsonContent["schema-mysql"][keyToExtract])
                         } else if ("${parts[1]}" != "cron" && "${parts[1]}" != "docker-config" && "${parts[1]}" != "docker-compose")  {
                             keyToExtract = "${parts[2]}"
                             fileInfo = new HashMap(jsonContent[keyToExtract])
@@ -115,6 +90,18 @@ pipeline {
                         }
                     }
                 }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                notification("Pipeline job has successfully build")
+            }
+        }
+        failure {
+            script {
+                notification("Pipeline job has failure build")
             }
         }
     }
