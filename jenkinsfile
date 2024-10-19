@@ -3,9 +3,8 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
 def modifiedFiles
 pipeline {
-    agent {
-        label 'localhost'
-    }
+    agent any
+
     stages {
         stage('Print Modified Files') {
             steps {
