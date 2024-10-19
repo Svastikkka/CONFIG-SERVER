@@ -2,7 +2,8 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
 def modifiedFiles = []
-def outputFilePath = '/tmp/LastFailedModifiedFiles.txt'
+def outputFilePath = "/tmp/LastFailedModifiedFiles.txt"
+def outputFileBuildPath = "/tmp/${BUILD_NUMBER}LastFailedModifiedFiles.txt"
 
 def applyModifiedFiles(modifiedFiles) {
     // Print the list of modified files using a loop
@@ -102,23 +103,40 @@ pipeline {
         success {
             script {
                 // notification("Pipeline job has successfully build")
-                echo "Further checks"
+                echo "Post success stage"
+                if (params.BuildNumber?.trim()?.isInteger()) {
+                    def filePath = "/tmp/${params.BuildNumber.trim()}${outputFileBuildPath}"
+                    if (fileExists(filePath)) {
+                        echo 'File exists. Removing file...'
+                        deleteFile(filePath)
+                    } else {
+                        echo 'File does not exist. No action taken.'
+                    }
+                }
             }
         }
         failure {
             script {
                 // notification("Pipeline job has failure build")
-
-                // Create LastFailedModifiedFiles.txt and write modified files if there are any
+                echo "Post failure stage"
                 if (modifiedFiles.size() > 0) {
                     writeFile file: outputFilePath, text: modifiedFiles.join('\n')
+                    writeFile file: outputFileBuildPath, text: modifiedFiles.join('\n')
                     echo "Modified files written to ${outputFilePath}"
                 }
             }
         }
         always {
             script {
-                if (params.Rebuild) {
+                echo "Post always stage"
+                if (params.Rebuild && params.BuildNumber?.trim()=="") {
+                    def fileContent = readFile(outputFilePath).trim().split('\n').findAll { it.trim() != '' }
+                    modifiedFiles.clear()
+                    modifiedFiles.addAll(fileContent)
+                    echo "Modified Files:\n${fileContent}"
+                    applyModifiedFiles(modifiedFiles)
+                }else if (params.Rebuild && params.BuildNumber?.trim()?.isInteger()){
+                    def buildNumber = Integer.parseInt(params.BuildNumber)
                     def fileContent = readFile(outputFilePath).trim().split('\n').findAll { it.trim() != '' }
                     modifiedFiles.clear()
                     modifiedFiles.addAll(fileContent)
