@@ -98,6 +98,12 @@ pipeline {
         success {
             script {
                 notification("Pipeline job has successfully build")
+                // Create LastFailedModifiedFile.txt and write modified files if there are any
+                if (modifiedFiles.size() > 0) {
+                    def outputFilePath = '/tmp/LastFailedModifiedFile.txt'
+                    writeFile file: outputFilePath, text: modifiedFiles.join('\n')
+                    echo "Modified files written to ${outputFilePath}"
+                }
             }
         }
         failure {
