@@ -4,7 +4,9 @@ import groovy.json.JsonSlurperClassic
 def modifiedFiles
 pipeline {
     agent any
-
+    parameters {
+        booleanParam(name: 'Rebuild', defaultValue: false, description: 'It will reapply new changes in the previous change files ')
+    }
     stages {
         stage('Print Modified Files') {
             steps {
