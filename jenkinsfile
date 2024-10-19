@@ -6,6 +6,9 @@ pipeline {
     agent {
         label 'localhost'
     }
+    parameters {
+        booleanParam(name: 'Rebuild', defaultValue: false, description: 'It will reapply new changes in the previous change files ')
+    }
     stages {
         stage('Print Modified Files') {
             steps {
@@ -39,7 +42,15 @@ pipeline {
                     }
  
                     def modifiedFiles = []
- 
+                    // Ensure the existence of the modifiedFiles.txt file
+                    def modifiedFilesFile = new File("/tmp/modifiedFiles.txt")
+                    // Clear modifiedFiles.txt if Rebuild is unchecked
+                    if (!params.Rebuild) {
+                        if (modifiedFilesFile.exists()) {
+                            modifiedFilesFile.delete()
+                        }
+                        modifiedFilesFile.createNewFile()
+                    }
                     currentBuild.changeSets.each { changeLogSet ->
                         changeLogSet.items.each { entry ->
                             echo "${entry.commitId} by ${entry.author} on ${new Date(entry.timestamp)}: ${entry.msg}"
@@ -54,6 +65,19 @@ pipeline {
                         }
                     }
 
+
+                    // Append each modified file path to modifiedFiles.txt
+                    for (int i = 0; i < modifiedFiles.size(); i++) {
+                        modifiedFilesFile.append("${modifiedFiles[i]}\n")
+                    }
+
+                    // Read the content of modifiedFiles.txt
+                    def fileContent = readFile('/tmp/modifiedFiles.txt').trim().split('\n').findAll { it.trim() != '' }
+                    echo "Modified Files:\n${fileContent}"
+
+                    modifiedFiles.clear()
+                    modifiedFiles.addAll(fileContent)
+ 
                     // Print the list of modified files using a loop
                     for (int i = 0; i < modifiedFiles.size(); i++) {
                         echo "Complete PATH: ${modifiedFiles[i]}"
@@ -74,6 +98,9 @@ pipeline {
                         } else if ("${parts[1]}" == "schema-psql") {
                             keyToExtract = "${parts[2]}"
                             fileInfo = new HashMap(jsonContent["schema-psql"][keyToExtract])
+                        } else if ("${parts[1]}" == "schema-mysql") {
+                            keyToExtract = "${parts[2]}"
+                            fileInfo = new HashMap(jsonContent["schema-mysql"][keyToExtract])
                         } else if ("${parts[1]}" != "cron" && "${parts[1]}" != "docker-config" && "${parts[1]}" != "docker-compose")  {
                             keyToExtract = "${parts[2]}"
                             fileInfo = new HashMap(jsonContent[keyToExtract])
@@ -88,269 +115,8 @@ pipeline {
                             echo "Enabled: ${fileInfo.enable}"
                             echo "Project: ${fileInfo.project}"
                         }
- 
-                        if ("${parts[0]}" == "tick" && "${parts[1]}" == "tickscript") {
-                            def tickScriptContent = readFile("${modifiedFiles[i]}").trim().replaceAll('\n', '\\\n').replaceAll('\"', '\\\"')
- 
-                            def jsonPayload = [
-                                id: fileInfo.service,
-                                dbrps: [
-                                    [
-                                        db: "telegraf",
-                                        rp: "autogen"
-                                    ]
-                                ],
-                                type: "stream",
-                                vars: [:],
-                                script: tickScriptContent
-                            ]
-                            def jsonPayloadStr = groovy.json.JsonOutput.toJson(jsonPayload)
-                            writeFile file: 'sample.json', text: jsonPayloadStr 
-                            sh "cat sample.json"
-
-                            def curlOutput = sh(script: "curl -s http://192.168.0.213:9092/kapacitor/v1/tasks/${fileInfo.service}", returnStdout: true)
-                            def json = new JsonSlurperClassic().parseText(curlOutput)
-                            def errorMessage = json.error?.trim()
-
-                            def apiUrl2 = "http://192.168.0.213:9092/kapacitor/v1/tasks/${fileInfo.service}"
-
-                            if (errorMessage =~ "no task exists") {
-                            // Create tickscript not present
-                            try {
-                                sh script: """
-                                    set +e
-                                    curl -X POST -H Content-Type: application/json -d @sample.json http://192.168.0.213:9092/kapacitor/v1/tasks
-                                    exitCode=\$?
-                                    curl -X PATCH -H "Content-Type: application/json" -d '{"status": "enabled"}' ${apiUrl2}
-                                    set -e
-                                    if [ \$exitCode -ne 0]; then
-                                        echo "Curl command failed with exit code: \$exitCode"
-                                        exit 1
-                                    fi
-                                """, returnStdout: true
-                            } catch (Exception e) {
-                                notification("Failed to execute curl command for InfluxDB 2: ${e.getMessage()}")
-                            }
-                            } else {
-                                // Update tickscript if present
-                                try {
-                                    sh script: """
-                                        set +e
-                                        curl -X PATCH -H "Content-Type: application/json" -d '{"status": "disabled"}' ${apiUrl2}
-                                        curl -X PATCH -H "Content-Type: application/json" -d @sample.json ${apiUrl2}
-                                        exitCode=\$?
-                                        curl -X PATCH -H "Content-Type: application/json" -d '{"status": "enabled"}' ${apiUrl2}
-                                        set -e
-                                        if [ \$exitCode -ne 0]; then
-                                            echo "Curl command failed with exit code: \$exitCode"
-                                            exit 1
-                                        fi
-                                    """, returnStdout: true
-                                } catch (Exception e) {
-                                    notification("Failed to execute curl command for InfluxDB 2: ${e.getMessage()}")
-                                }
-                            }
-                        } else if ("${parts[1]}" == "netplan") {
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-                                if ("${parts[0]}" != "localhost") {
-                                    sh "ansible-playbook\
-                                                        -i inventory.ini \
-                                                        -u $username \
-                                                        -e 'ansible_ssh_user=$username' \
-                                                        -e 'ansible_ssh_pass=$password' \
-                                                        -e ansible_sudo_pass=$password \
-                                                        -e service=${fileInfo.service}\
-                                                        -e src_path=${modifiedFiles[i]}\
-                                                        -e dest_path=${fileInfo.path}\
-                                                        -e enable=${fileInfo.enable}\
-                                                        -e host=${parts[0]} netplan.yml"
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        } else if ("${parts[1]}" == "sysctl") {
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-                                if ("${parts[0]}" != "localhost") {
-                                    sh "ansible-playbook\
-                                                        -i inventory.ini \
-                                                        -u $username \
-                                                        -e 'ansible_ssh_user=$username' \
-                                                        -e 'ansible_ssh_pass=$password' \
-                                                        -e ansible_sudo_pass=$password \
-                                                        -e service=${fileInfo.service}\
-                                                        -e src_path=${modifiedFiles[i]}\
-                                                        -e dest_path=${fileInfo.path}\
-                                                        -e enable=${fileInfo.enable}\
-                                                        -e host=${parts[0]} sysctl.yml"
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        } else if ("${parts[1]}" == "files"){
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-
-                                if ("${parts[0]}" != "localhost") {
-                                    
-                                    echo "user: ${fileInfo.user}"
-                                    echo "group: ${fileInfo.group}"
-                                    echo "mode: ${fileInfo.mode}"
-
-                                    sh "ansible-playbook\
-                                                        -i inventory.ini \
-                                                        -u $username \
-                                                        -e 'ansible_ssh_user=$username' \
-                                                        -e 'ansible_ssh_pass=$password' \
-                                                        -e ansible_sudo_pass=$password \
-                                                        -e service=${fileInfo.service}\
-                                                        -e src_path=${modifiedFiles[i]}\
-                                                        -e dest_path=${fileInfo.path}\
-                                                        -e restart_flag=${fileInfo.restart_flag}\
-                                                        -e host=${parts[0]}\
-                                                        -e user=${fileInfo.user}\
-                                                        -e group=${fileInfo.group}\
-                                                        -e mode=${fileInfo.mode} files.yml"
-
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        } else if ("${parts[1]}" == "cron"){
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-                                echo "User: ${parts[2]}"
-                                echo "File: ${parts[3]}"
-
-                                if ("${parts[0]}" != "localhost") {
-                                    
-                                    echo "User: ${parts[2]}"
-                                    echo "File: ${parts[3]}"
-                                    sh "ansible-playbook\
-                                                        -i inventory.ini \
-                                                        -u $username \
-                                                        -e 'ansible_ssh_user=$username' \
-                                                        -e 'ansible_ssh_pass=$password' \
-                                                        -e ansible_sudo_pass=$password \
-                                                        -e src_path=${modifiedFiles[i]}\
-                                                        -e dest_path=/tmp/${parts[2]}_cron.txt\
-                                                        -e user=${parts[2]}\
-                                                        -e host=${parts[0]} cron.yml"
-
-
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        } else if ("${parts[1]}" == "docker-config") {
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-
-                                if ("${parts[0]}" != "localhost") {
-                                    def services = fileInfo.service.split(",")
-                                    services.each { service ->
-                                        sh "echo $service"
-                                        sh "ansible-playbook\
-                                                            -i inventory.ini \
-                                                            -u $username \
-                                                            -e 'ansible_ssh_user=$username' \
-                                                            -e 'ansible_ssh_pass=$password' \
-                                                            -e ansible_sudo_pass=$password \
-                                                            -e service=${service}\
-                                                            -e src_path=${modifiedFiles[i]}\
-                                                            -e dest_path=${fileInfo.path}\
-                                                            -e enable=${fileInfo.enable}\
-                                                            -e jobName=${env.JOB_NAME}\
-                                                            -e buildNumber=${env.BUILD_NUMBER}\
-                                                            -e host=${parts[0]} docker.yml"
-                                    }
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        } else if ("${parts[1]}" == "docker-compose") {
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-
-                                if ("${parts[0]}" != "localhost") {
-                                    sh "ansible-playbook\
-                                                        -i inventory.ini \
-                                                        -u $username \
-                                                        -e 'ansible_ssh_user=$username' \
-                                                        -e 'ansible_ssh_pass=$password' \
-                                                        -e ansible_sudo_pass=$password \
-                                                        -e service=${fileInfo.service}\
-                                                        -e src_path=${modifiedFiles[i]}\
-                                                        -e dest_path=${fileInfo.path}\
-                                                        -e enable=${fileInfo.enable}\
-                                                        -e jobName=${env.JOB_NAME}\
-                                                        -e buildNumber=${env.BUILD_NUMBER}\
-                                                        -e project=${fileInfo.project}\
-                                                        -e host=${parts[0]} compose.yml"
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        } else if ("${parts[1]}" == "schema-psql") {
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "psql_${fileInfo.port}_${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-
-                                if ("${parts[0]}" != "localhost") {
-                                    echo "This is schema psql"
-                                    echo "Port: ${fileInfo.port}"
-                                    echo "Database: ${fileInfo.restore_options.dbname}"
-                                    echo "Enable: ${fileInfo.restore_options.enable}"
-                                    echo "Restore Options: ${fileInfo.restore_options}"
-                                    sh """
-                                        export PGPASSWORD='$password'
-                                        psql -h ${parts[0]} -p ${fileInfo.port}  -d ${fileInfo.restore_options.dbname} -U $username -f ${modifiedFiles[i]}
-                                    """
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        } else if ("${parts[1]}" != "files" && "${parts[1]}" != "docker-config"  && "${parts[0]}" != "tick") {
-                            withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-                                if ("${parts[0]}" != "localhost") {
-                                    if ("${fileInfo.path}".endsWith('.service')) {
-                                        sh "ansible-playbook\
-                                                            -i inventory.ini \
-                                                            -u $username \
-                                                            -e 'ansible_ssh_user=$username' \
-                                                            -e 'ansible_ssh_pass=$password' \
-                                                            -e ansible_sudo_pass=$password \
-                                                            -e service=${fileInfo.service}\
-                                                            -e src_path=${modifiedFiles[i]}\
-                                                            -e dest_path=${fileInfo.path}\
-                                                            -e enable=${fileInfo.enable}\
-                                                            -e daemon_reload=true\
-                                                            -e host=${parts[0]} restart.yml"
-                                    }
-                                    sh "ansible-playbook\
-                                                        -i inventory.ini \
-                                                        -u $username \
-                                                        -e 'ansible_ssh_user=$username' \
-                                                        -e 'ansible_ssh_pass=$password' \
-                                                        -e ansible_sudo_pass=$password \
-                                                        -e service=${fileInfo.service}\
-                                                        -e src_path=${modifiedFiles[i]}\
-                                                        -e dest_path=${fileInfo.path}\
-                                                        -e enable=${fileInfo.enable}\
-                                                        -e daemon_reload=false\
-                                                        -e host=${parts[0]} restart.yml"
-                                } else {
-                                    echo "Host is ${parts[0]} forbidden"
-                                }
-                            }
-                        }
                     }
                 }
-            }
-        }
-    }
-    post {
-        success {
-            script {
-                notification("Pipeline job has successfully build")
-            }
-        }
-        failure {
-            script {
-                notification("Pipeline job has failure build")
             }
         }
     }
