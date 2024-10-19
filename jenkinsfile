@@ -47,7 +47,7 @@ pipeline {
     agent any
     parameters {
         booleanParam(name: 'Rebuild', defaultValue: false, description: 'It will reapply new changes in the previous change files')
-        string(name: 'BuildBumber', defaultValue: "", description: 'It will reapply changes from particular build')
+        string(name: 'BuildNumber', defaultValue: "", description: 'It will reapply changes from particular build')
     }
     stages {
         stage('Print Modified Files') {
