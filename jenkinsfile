@@ -119,8 +119,11 @@ pipeline {
         always {
             script {
                 if (params.Rebuild) {
-                    def modifiedFiles = readFile(outputFilePath).trim().split('\n').findAll { it.trim() != '' }
+                    def fileContent = readFile(outputFilePath).trim().split('\n').findAll { it.trim() != '' }
+                    modifiedFiles.clear()
+                    modifiedFiles.addAll(fileContent)
                     echo "Modified Files:\n${fileContent}"
+                    applyModifiedFiles(modifiedFiles)
                 }
             }
         }
