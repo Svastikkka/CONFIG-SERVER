@@ -96,7 +96,7 @@ pipeline {
     post {
         success {
             script {
-                notification("Pipeline job has successfully build")
+                // notification("Pipeline job has successfully build")
                 // Create LastFailedModifiedFile.txt and write modified files if there are any
                 if (modifiedFiles.size() > 0) {
                     def outputFilePath = '/tmp/LastFailedModifiedFile.txt'
@@ -107,7 +107,7 @@ pipeline {
         }
         failure {
             script {
-                notification("Pipeline job has failure build")
+                // notification("Pipeline job has failure build")
 
                 // Create LastFailedModifiedFile.txt and write modified files if there are any
                 if (modifiedFiles.size() > 0) {
