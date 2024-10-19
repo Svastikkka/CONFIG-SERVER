@@ -1,7 +1,7 @@
 @Library("shared-lib@master") _
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
-
+def modifiedFiles
 pipeline {
     agent {
         label 'localhost'
@@ -38,7 +38,7 @@ pipeline {
                         filePath.endsWith('sysctl.yml')                        
                     }
  
-                    def modifiedFiles = []
+                    modifiedFiles = []
  
                     currentBuild.changeSets.each { changeLogSet ->
                         changeLogSet.items.each { entry ->
@@ -88,6 +88,7 @@ pipeline {
                             echo "Enabled: ${fileInfo.enable}"
                             echo "Project: ${fileInfo.project}"
                         }
+                        sh "exit 1"
                     }
                 }
             }
@@ -102,6 +103,13 @@ pipeline {
         failure {
             script {
                 notification("Pipeline job has failure build")
+
+                // Create LastFailedModifiedFile.txt and write modified files if there are any
+                if (modifiedFiles.size() > 0) {
+                    def outputFilePath = '/tmp/LastFailedModifiedFile.txt'
+                    writeFile file: outputFilePath, text: modifiedFiles.join('\n')
+                    echo "Modified files written to ${outputFilePath}"
+                }
             }
         }
     }
