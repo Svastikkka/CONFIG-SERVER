@@ -25,9 +25,7 @@ def extractFileInfo(parts,jsonContent) {
     return fileInfo 
 }
 pipeline {
-    agent {
-        label 'localhost'
-    }
+    agent any
     stages {
         stage('Modified Files') {
             steps {
