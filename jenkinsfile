@@ -106,7 +106,7 @@ pipeline {
                                                             -e dest_path=${fileInfo.path}\
                                                             -e enable=${fileInfo.enable}\
                                                             -e daemon_reload=false\
-                                                            -e host=${parts[0]} ./playbooks/test/test_ping.yml"
+                                                            -e host=${parts[0]} ./playbooks/tests/test_ping.yml"
                                     } else {
                                         echo "Host is ${parts[0]} forbidden"
                                     }
