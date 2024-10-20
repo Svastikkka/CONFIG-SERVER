@@ -97,30 +97,6 @@ pipeline {
                             echo "Service: ${fileInfo.service}"
                             echo "Path: ${fileInfo.path}"
                             echo "Enabled: ${fileInfo.enable}"
-                            try {
-                                withCredentials([[$class: 'VaultUsernamePasswordCredentialBinding', credentialsId: "${parts[0]}", passwordVariable: 'password', usernameVariable: 'username']]) {
-                                    if ("${parts[0]}" != "localhost") {
-                                        sh "ansible-playbook\
-                                                            -i inventory.ini \
-                                                            -u $username \
-                                                            -e 'ansible_ssh_user=$username' \
-                                                            -e 'ansible_ssh_pass=$password' \
-                                                            -e ansible_sudo_pass=$password \
-                                                            -e service=${fileInfo.service}\
-                                                            -e src_path=${modifiedFiles[i]}\
-                                                            -e dest_path=${fileInfo.path}\
-                                                            -e enable=${fileInfo.enable}\
-                                                            -e daemon_reload=false\
-                                                            -e host=${parts[0]} ./playbooks/test/test_nginx.yml"
-                                    } else {
-                                        echo "Host is ${parts[0]} forbidden"
-                                    }
-                                }
-                            }  catch (Exception e) {
-                                failedFiles.add(modifiedFiles[i])
-                                echo "Nginx Config  Dry Run Fail"
-                                echo e
-                            }
                         }
                     }
                 }
