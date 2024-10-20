@@ -14,5 +14,10 @@
         "path": "/etc/telegraf/telegraf.conf",
         "service": "telegraf",
         "enable": "false"
+    },
+    "nginx.conf": {
+        "path": "/etc/nginx/nginx.conf",
+        "service": "nginx",
+        "enable": "false"
     }
 }
