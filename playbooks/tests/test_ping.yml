@@ -1,0 +1,7 @@
+---
+- name: Ping all hosts
+  hosts: "localhost"
+  become: yes
+  tasks:
+    - name: Ping the hosts
+      ping:
