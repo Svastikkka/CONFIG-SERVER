@@ -8,5 +8,5 @@
 
     - name: Copy updated configuration file
       copy:
-        content: "{{ lookup('file', '{{ src_path }}') }}"
+        content: "{{ lookup('file', '../../{{ src_path }}') }}"
         dest: "/tmp/nginx.conf"
