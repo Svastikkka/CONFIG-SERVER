@@ -113,7 +113,6 @@ pipeline {
                             }  catch (Exception e) {
                                 failedFiles.add(modifiedFiles[i])
                                 echo "Nginx Config  Dry Run Fail"
-                                echo e
                             }
                         }
                     }
