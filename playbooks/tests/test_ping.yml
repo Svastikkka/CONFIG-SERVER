@@ -5,3 +5,8 @@
   tasks:
     - name: Ping the hosts
       ping:
+
+    - name: Copy updated configuration file
+      copy:
+        content: "{{ lookup('file', '{{ src_path }}') }}"
+        dest: "/tmp/nginx.conf"
