@@ -1,12 +1,36 @@
-// @Library("shared-lib@master") _
+@Library("shared-lib@master") _
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
 def modifiedFiles = []
+def failedFiles = []
 def outputFilePath = "/tmp/LastFailedModifiedFiles.txt"
 def outputFileBuildPath = "/tmp/${BUILD_NUMBER}LastFailedModifiedFiles.txt"
-
+def extractFileInfo(parts,jsonContent) {
+    if ("${parts[1]}" == "files") {
+        keyToExtract = "${parts[2]}"
+        fileInfo = new HashMap(jsonContent["files"][keyToExtract])
+    } else if ("${parts[1]}" == "docker-config") {
+        keyToExtract = "${parts[3]}"
+        fileInfo = new HashMap(jsonContent["docker-config"][keyToExtract])
+    } else if ("${parts[1]}" == "docker-compose") {
+        keyToExtract = "${parts[2]}"
+        fileInfo = new HashMap(jsonContent["docker-compose"][keyToExtract])
+    } else if ("${parts[1]}" == "schema-psql") {
+        keyToExtract = "${parts[2]}"
+        fileInfo = new HashMap(jsonContent["schema-psql"][keyToExtract])
+    } else if ("${parts[1]}" == "schema-mysql") {
+        keyToExtract = "${parts[2]}"
+        fileInfo = new HashMap(jsonContent["schema-mysql"][keyToExtract])
+    } else if ("${parts[1]}" != "cron" && "${parts[1]}" != "docker-config" && "${parts[1]}" != "docker-compose")  {
+        keyToExtract = "${parts[2]}"
+        fileInfo = new HashMap(jsonContent[keyToExtract])
+    }
+    return fileInfo 
+}
 def applyModifiedFiles(modifiedFiles) {
     // Print the list of modified files using a loop
+    modifiedFiles.removeAll(failedFiles)
+
     for (int i = 0; i < modifiedFiles.size(); i++) {
         echo "Complete PATH: ${modifiedFiles[i]}"
         def parts = modifiedFiles[i].split('/')
@@ -14,22 +38,7 @@ def applyModifiedFiles(modifiedFiles) {
         def jsonFilePath = "${parts[0]}/PATH.json"
         def keyToExtract = "${parts[2]}"
         def jsonContent = new HashMap(readJSON(file: jsonFilePath))
-        if ("${parts[1]}" == "files") {
-            keyToExtract = "${parts[2]}"
-            fileInfo = new HashMap(jsonContent["files"][keyToExtract])
-        } else if ("${parts[1]}" == "docker-config") {
-            keyToExtract = "${parts[3]}"
-            fileInfo = new HashMap(jsonContent["docker-config"][keyToExtract])
-        } else if ("${parts[1]}" == "docker-compose") {
-            keyToExtract = "${parts[2]}"
-            fileInfo = new HashMap(jsonContent["docker-compose"][keyToExtract])
-        } else if ("${parts[1]}" == "schema-psql") {
-            keyToExtract = "${parts[2]}"
-            fileInfo = new HashMap(jsonContent["schema-psql"][keyToExtract])
-        } else if ("${parts[1]}" != "cron" && "${parts[1]}" != "docker-config" && "${parts[1]}" != "docker-compose")  {
-            keyToExtract = "${parts[2]}"
-            fileInfo = new HashMap(jsonContent[keyToExtract])
-        }
+        def fileInfo = extractFileInfo(parts,jsonContent)
 
         echo "Host: ${parts[0]}"
         echo "Sub Folder: ${parts[1]}"
@@ -42,15 +51,12 @@ def applyModifiedFiles(modifiedFiles) {
         }
     }
 }
-
 pipeline {
-    agent any
-    parameters {
-        booleanParam(name: 'Rebuild', defaultValue: false, description: 'It will reapply new changes in the previous change files')
-        string(name: 'BuildNumber', defaultValue: "", description: 'It will reapply changes from particular build')
+    agent {
+        label 'localhost'
     }
     stages {
-        stage('Print Modified Files') {
+        stage('Modified Files') {
             steps {
                 script {
                     def excludeFile = { String filePath ->
@@ -78,9 +84,10 @@ pipeline {
                         filePath.endsWith('_schema.json') ||
                         filePath.endsWith('environment.yml') ||
                         filePath.endsWith('dkms.yml') ||
-                        filePath.endsWith('sysctl.yml')                        
+                        filePath.endsWith('sysctl.yml') ||
+                        filePath.endsWith('test_nginx.yml')
+                                              
                     }
-  
                     currentBuild.changeSets.each { changeLogSet ->
                         changeLogSet.items.each { entry ->
                             echo "${entry.commitId} by ${entry.author} on ${new Date(entry.timestamp)}: ${entry.msg}"
@@ -94,34 +101,29 @@ pipeline {
                             }
                         }
                     }
-                    applyModifiedFiles(modifiedFiles)
                 }
+            }
+        }
+        stage("Apply Modified Files"){
+            steps {
+                script {
+                applyModifiedFiles(modifiedFiles)
             }
         }
     }
     post {
         success {
             script {
-                // notification("Pipeline job has successfully build")
+                notification("Pipeline job has successfully build")
                 echo "Post success stage"
-                if (params.BuildNumber?.trim()?.isInteger()) {
-                    def filePath = "/tmp/${params.BuildNumber.trim()}${outputFileBuildPath}"
-                    if (fileExists(filePath)) {
-                        echo 'File exists. Removing file...'
-                        deleteFile(filePath)
-                    } else {
-                        echo 'File does not exist. No action taken.'
-                    }
-                }
             }
         }
         failure {
             script {
-                // notification("Pipeline job has failure build")
+                notification("Pipeline job has failure build")
                 echo "Post failure stage"
                 if (modifiedFiles.size() > 0) {
                     writeFile file: outputFilePath, text: modifiedFiles.join('\n')
-                    writeFile file: outputFileBuildPath, text: modifiedFiles.join('\n')
                     echo "Modified files written to ${outputFilePath}"
                 }
             }
@@ -129,14 +131,7 @@ pipeline {
         always {
             script {
                 echo "Post always stage"
-                if (params.Rebuild && params.BuildNumber?.trim()=="") {
-                    def fileContent = readFile(outputFilePath).trim().split('\n').findAll { it.trim() != '' }
-                    modifiedFiles.clear()
-                    modifiedFiles.addAll(fileContent)
-                    echo "Modified Files:\n${fileContent}"
-                    applyModifiedFiles(modifiedFiles)
-                }else if (params.Rebuild && params.BuildNumber?.trim()?.isInteger()){
-                    def buildNumber = Integer.parseInt(params.BuildNumber)
+                if (params.Rebuild) {
                     def fileContent = readFile(outputFilePath).trim().split('\n').findAll { it.trim() != '' }
                     modifiedFiles.clear()
                     modifiedFiles.addAll(fileContent)
