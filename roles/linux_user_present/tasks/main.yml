@@ -1,0 +1,8 @@
+---
+- name: Check if user exists
+  user:
+    name: "{{ user }}"
+  check_mode: yes
+  register: user_check
+  changed_when: false
+  failed_when: user_check.state != "present"

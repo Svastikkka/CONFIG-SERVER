@@ -1,0 +1,21 @@
+---
+- name: Install Realtek r8125 driver via PPA
+  hosts: targets
+  become: yes
+  tasks:
+    - name: Add the PPA repository
+      apt_repository:
+        repo: "ppa:awesometic/ppa"
+        state: present
+      # Adds the specified PPA repository to the system
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      # Updates the local package index
+
+    - name: Install the Realtek r8125 driver
+      apt:
+        name: realtek-r8125-dkms
+        state: present
+      # Installs the Realtek r8125 driver from the PPA repository

@@ -1,0 +1,5 @@
+- name: Reload Service
+  become: yes
+  service:
+    name: "{{ service }}"
+    state: reloaded

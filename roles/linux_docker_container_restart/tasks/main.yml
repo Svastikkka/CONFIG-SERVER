@@ -1,0 +1,4 @@
+---
+- name: Restart Container if it exists
+  become: yes
+  shell: "docker restart {{ service }}"

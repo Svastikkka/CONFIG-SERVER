@@ -1,0 +1,8 @@
+---
+- name: Check if group exists
+  group:
+    name: "{{ group }}"
+  check_mode: yes
+  register: group_check
+  changed_when: false
+  failed_when: group_check.state != "present"

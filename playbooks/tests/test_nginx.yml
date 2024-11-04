@@ -1,0 +1,25 @@
+---
+- name: Updating {{ service }} data and user permission
+  hosts: "{{ host }}"
+  become: yes
+  become_method: sudo
+
+  tasks:
+
+    - name: Copy updated configuration file
+      copy:
+        content: "{{ lookup('file', '../../{{ src_path }}') }}"
+        dest: "/tmp/nginx.conf"
+
+    - name: Test Nginx configuration
+      command: nginx -t -c /tmp/nginx.conf
+      register: nginx_test_result
+
+    - name: Show Nginx test result
+      debug:
+        var: nginx_test_result.stdout
+
+    - name: Remove nginx.conf from /tmp
+      file:
+        path: "/tmp/nginx.conf"
+        state: absent

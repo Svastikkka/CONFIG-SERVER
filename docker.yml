@@ -1,0 +1,27 @@
+---
+- name: Restart Service after Updating Configuration
+  hosts: "{{ host }}"
+  become: yes
+  become_method: sudo
+
+  tasks:
+
+    - name: Copy updated configuration file
+      copy:
+        content: "{{ lookup('file', '{{ src_path }}') }}"
+        dest: "{{ dest_path }}"
+
+    - name: Check if the container exists
+      shell: "docker ps | grep {{ service }}"
+      register: container_info
+      ignore_errors: yes
+
+    - name: Restart Container if it exists
+      include_role:
+        name: linux_docker_container_restart
+      when: container_info.rc == 0
+
+    - name: Send notification
+      include_role:
+        name: send_notification
+      when: container_info.rc != 0
