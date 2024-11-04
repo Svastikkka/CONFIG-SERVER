@@ -55,12 +55,9 @@ pipeline {
                         filePath.endsWith('ruff.toml') ||
                         filePath.endsWith('schema_validation.py') ||
                         filePath.endsWith('schema_validation.yml') ||
-                        filePath.endsWith('_schema.json') ||
                         filePath.endsWith('environment.yml') ||
                         filePath.endsWith('dkms.yml') ||
                         filePath.endsWith('sysctl.yml') ||
-                        filePath.endsWith('_switch.txt') ||
-                        filePath.endsWith('_firewall.xml') ||
                         filePath.endsWith('test_nginx.yml')
                                               
                     }
