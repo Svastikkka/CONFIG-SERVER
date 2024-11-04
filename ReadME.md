@@ -1,4 +1,4 @@
-# Config Server
+# GitOps
 This tool facilitates the management of configuration changes on bare-metal infrastructure.
 
 All changes to our infra should come through pull requests to this repo.
@@ -8,23 +8,23 @@ All changes to our infra should come through pull requests to this repo.
 - Docker compose
 - openjdk-17-jdk (for slave as Jenkins runs on java)
 
-# Need for Config Server
+# Need for gitops
 
-Config Server provides several benefits in software development and system architecture. Here are some key advantages:
+GitOps provides several benefits in software development and system architecture. Here are some key advantages:
 
 1. **Centralized Configuration Management:**
    - **Simplified Updates:** Centralized configuration makes it easier to update and manage configurations, as changes can be made in one place and propagated to all connected services.
 
 2. **Versioned Configuration:**
-   - **Auditing and History:** Config Server often support versioning of configurations, providing an audit trail and history of changes. This can be valuable for debugging, troubleshooting, and understanding the evolution of configurations over time.
+   - **Auditing and History:** GitOps often support versioning of configurations, providing an audit trail and history of changes. This can be valuable for debugging, troubleshooting, and understanding the evolution of configurations over time.
 
 3. **Security and Access Control:**
-   - **Access Control:** Config Server can enforce access controls, ensuring that only authorized individuals or systems can modify or retrieve sensitive configuration information.
+   - **Access Control:** GitOps can enforce access controls, ensuring that only authorized individuals or systems can modify or retrieve sensitive configuration information.
 
 4. **Ease of Troubleshooting:**
    - **Centralized Logging:** With a centralized configuration server, it's easier to log and monitor configuration changes. This aids in troubleshooting issues related to misconfigurations or unexpected behavior.
 
-In summary, Config Server simplifies configuration management, enhances flexibility, and contributes to better control and security in distributed and dynamic software systems.
+In summary, GitOps simplifies configuration management, enhances flexibility, and contributes to better control and security in distributed and dynamic software systems.
 
 It also becomes a single source of truth for our infrastructure enhnacing visibility.
 
@@ -72,12 +72,12 @@ Example
 
 **Step 1** Required: Clone this repository using git.
 ```bash
-git clone https://github.com/Svastikkka/CONFIG-SERVER.git
+git clone git@192.168.0.155:balte/gitops.git
 ```
 
 **Step 2** Required: Go inside the repository
 ```bash
-cd ./CONFIG-SERVER
+cd ./gitops
 ```
 
 **Step 3** Required: Run the below command to initialize intial setup (If we are initializing without any previous/existing data)
@@ -146,3 +146,4 @@ Try to create a Job Config Server with type **pipeline** and add **Config Server
 - [How to Integrate HashiCorp Vault With Jenkins](https://www.youtube.com/watch?v=5-RMu9M_Anc)
 - [How to Install Jenkins Plugins](https://www.youtube.com/watch?app=desktop&v=JX_G2gAGvfk)
 - [Managing Plugins](https://www.jenkins.io/doc/book/managing/plugins/)
+- [Role-based Authorization Strategy](https://plugins.jenkins.io/role-strategy/)
