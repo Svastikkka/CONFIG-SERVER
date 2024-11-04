@@ -1,0 +1,10 @@
+---
+- name: Send notification to Google Chat if {{ service }} doesn't exist
+  uri:
+    url: "https://chat.googleapis.com/v1/spaces/AAAAKYaF-4w/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=iB_dMvNwRu4NvGPBwGbf8lyTBXI_z7cm4gNCJLs2BNE"
+    method: POST
+    body_format: json
+    body: '{"text": "The {{ service }} does not exist and could not be restarted and build URL: http://192.168.0.209:8080/job/{{ jobName }}/{{ buildNumber }}"}'
+    status_code: 200
+    headers:
+      Content-Type: "application/json"

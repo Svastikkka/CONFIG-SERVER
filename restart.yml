@@ -11,8 +11,20 @@
         content: "{{ lookup('file', '{{ src_path }}') }}"
         dest: "{{ dest_path }}"
 
+    - name: Reload Daemon
+      include_role:
+        name: linux_daemon_reload
+      when: daemon_reload | bool
+      tags: reload_daemon
+
+    - name: Reload Service
+      include_role:
+        name: linux_service_reload
+      when: service_reload | bool
+      tags: reload_service
+
     - name: Restart Service
-      become: yes
-      service:
-        name: "{{ service }}"
-        state: restarted
+      include_role:
+        name: linux_service_restart
+      when: service_restart | bool
+      tags: restart_service

@@ -1,0 +1,21 @@
+---
+- name: Restart Service after Updating Configuration
+  hosts: "{{ host }}"
+  become: yes
+  become_method: sudo
+
+  tasks:
+
+    - name: Copy updated configuration file
+      copy:
+        content: "{{ lookup('file', '{{ src_path }}') }}"
+        dest: "{{ dest_path }}"
+
+    - name: Restart Compose if it exists
+      include_role:
+        name: linux_docker_compose_restart
+
+    - name: Send notification
+      include_role:
+        name: send_notification
+      when: container_info.rc != 0

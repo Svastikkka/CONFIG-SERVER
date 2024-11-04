@@ -1,0 +1,7 @@
+---
+- name: Restrict Ownership
+  file:
+    path: "{{ dest_path }}"
+    owner: "{{ user }}"
+    group: "{{ group }}"
+    mode: "{{ mode }}"

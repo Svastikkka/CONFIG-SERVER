@@ -1,0 +1,21 @@
+---
+- name: Restart Service after Updating Configuration
+  hosts: "{{ host }}"
+  become: yes
+  become_method: sudo
+
+  tasks:
+
+    - name: Copy updated configuration file
+      copy:
+        src: "{{ src_path }}"
+        dest: "{{ dest_path }}"
+
+    - name: Update cron
+      become: yes
+      shell: "crontab  -u {{ user }} {{ dest_path }}"
+
+    - name: Delete cron.txt after applying changes
+      file:
+        path: "{{ dest_path }}"
+        state: absent
