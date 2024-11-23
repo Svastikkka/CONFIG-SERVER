@@ -1,4 +1,4 @@
-# GitOps
+# Config Server
 This tool facilitates the management of configuration changes on bare-metal infrastructure.
 
 All changes to our infra should come through pull requests to this repo.
